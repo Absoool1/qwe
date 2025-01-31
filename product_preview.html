@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Product Preview{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-4">
+        <h1 class="text-white">Product Preview</h1>
+        <p class="text-light">Review and customize your product details before creating the landing page.</p>
+    </div>
+
+    <div class="row">
+        <!-- Product Details -->
+        <div class="col-md-6">
+            <div class="card bg-light shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Product Details</h5>
+                    <form id="productForm" method="post" enctype="multipart/form-data" action="{% url 'save_product_details' %}">
+                        {% csrf_token %}
+                        
+                        <!-- Purchase URL -->
+                        <div class="mb-3">
+                            <label for="purchase_url" class="form-label">Affiliate Purchase URL:</label>
+                            <input type="url" id="purchase_url" name="purchase_url" class="form-control" 
+                                   value="{{ product_details.link }}" required>
+                        </div>
+
+                        <!-- Price -->
+                        <div class="mb-3">
+                            <label for="price" class="form-label">Price:</label>
+                            <input type="text" id="price" name="price" class="form-control" 
+                                   value="{{ product_details.price }}" required>
+                        </div>
+
+                        <!-- Generated Content -->
+                        <div class="mb-3">
+                            <label for="headline" class="form-label">Headline:</label>
+                            <input type="text" id="headline" name="headline" class="form-control" 
+                                   value="{{ product_details.headline }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subheadline" class="form-label">Subheadline:</label>
+                            <input type="text" id="subheadline" name="subheadline" class="form-control" 
+                                   value="{{ product_details.subheadline }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="usp" class="form-label">Unique Selling Proposition (USP):</label>
+                            <input type="text" id="usp" name="usp" class="form-control" 
+                                   value="{{ product_details.usp }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="benefits" class="form-label">Key Benefits:</label>
+                            <textarea id="benefits" name="benefits" class="form-control" rows="3" required>{{ product_details.benefits|join:", " }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="cta" class="form-label">Call to Action (CTA):</label>
+                            <input type="text" id="cta" name="cta" class="form-control" 
+                                   value="{{ product_details.cta }}" required>
+                        </div>
+
+                        <!-- Testimonials Section -->
+                        <div class="mb-3">
+                            <label class="form-label">Customer Testimonials:</label>
+                            <div id="testimonialsContainer">
+                                {% for testimonial in product_details.testimonials %}
+                                <div class="testimonial-entry mb-3">
+                                    <input type="text" name="testimonial_text[]" class="form-control mb-2" 
+                                           value="{{ testimonial.text }}" placeholder="Review text" required>
+                                    <input type="text" name="testimonial_author[]" class="form-control mb-2" 
+                                           value="{{ testimonial.author }}" placeholder="Customer name" required>
+                                    <input type="number" name="testimonial_stars[]" class="form-control mb-2" min="1" max="5" 
+                                           value="{{ testimonial.stars }}" placeholder="Rating (1-5 stars)" required>
+                                    <input type="date" name="testimonial_date[]" class="form-control" 
+                                           value="{{ testimonial.date }}" required>
+                                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeTestimonial(this)">Delete</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm" onclick="addTestimonial()">
+                                <i class="fas fa-plus"></i> Add Testimonial
+                            </button>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="urgency" class="form-label">Urgency Element:</label>
+                            <input type="text" id="urgency" name="urgency" class="form-control" 
+                                   value="{{ product_details.urgency }}" required>
+                        </div>
+                        
+                        <!-- Buttons -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <a href="http://localhost:3000/landing-page/{{ product_details.slug }}" 
+                                class="btn btn-primary w-100 mt-2">
+                                <i class="fas fa-eye"></i> Preview Landing Page
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Images -->
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Upload Product Images</h5>
+                    <form id="uploadImagesForm" method="post" enctype="multipart/form-data" action="{% url 'upload_images' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="product_images" class="form-label">Product Images:</label>
+                            <input type="file" id="product_images" name="image_files" class="form-control" multiple accept="image/*" onchange="previewImages(event)">
+                            <small class="text-muted">You can upload multiple images. Supported formats: JPEG, PNG.</small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-upload"></i> Upload Images
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Image Preview -->
+                    <div class="row mt-3" id="image-preview"></div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress mt-3" id="upload-progress" style="display: none;">
+                        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uploaded Image Gallery -->
+    <div class="row mt-5">
+        <h4 class="text-white">Uploaded Images:</h4>
+        <div class="row g-4" id="image-gallery">
+            {% for image_url in product_details.image_urls %}
+            <div class="col-md-4 col-sm-6" id="image-{{ forloop.counter }}" draggable="true" ondragstart="drag(event)" ondragover="allowDrop(event)" ondrop="drop(event)">
+                <div class="card h-100">
+                    <div class="position-relative">
+                        <!-- التعديل النهائي لعرض الصور -->
+                        <img src="{{ image_url }}" alt="Product Image" class="img-fluid rounded lazy-load" loading="lazy" style="width: 100%; height: 200px; object-fit: cover;">
+                        <button type="button" 
+                                class="btn btn-danger position-absolute top-0 end-0 m-2" 
+                                onclick="deleteImage('{{ image_url }}', 'image-{{ forloop.counter }}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Image Preview Before Upload
+function previewImages(event) {
+    const previewContainer = document.getElementById('image-preview');
+    previewContainer.innerHTML = '';
+
+    const files = event.target.files;
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+            alert("Only image files are allowed.");
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.classList.add('img-thumbnail', 'm-2');
+            img.style.width = '100px';
+            img.style.height = '100px';
+            img.style.objectFit = 'cover'; // إضافة لتحسين العرض
+            previewContainer.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Upload Images with Progress Bar
+document.getElementById("uploadImagesForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    const progressBar = document.getElementById('upload-progress');
+    const progressBarInner = progressBar.querySelector('.progress-bar');
+
+    progressBar.style.display = 'block';
+
+    fetch("{% url 'upload_images' %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            progressBarInner.style.width = '100%';
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+                location.reload();
+            }, 1000);
+        } else {
+            alert("Error: " + (data.error || "Unknown error"));
+        }
+    })
+    .catch(error => alert("Error: " + error));
+});
+
+// Testimonial Management
+function addTestimonial() {
+    const container = document.getElementById('testimonialsContainer');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'testimonial-entry mb-3';
+    newEntry.innerHTML = `
+        <input type="text" name="testimonial_text[]" class="form-control mb-2" placeholder="Review text" required>
+        <input type="text" name="testimonial_author[]" class="form-control mb-2" placeholder="Customer name" required>
+        <input type="number" name="testimonial_stars[]" class="form-control mb-2" min="1" max="5" placeholder="Rating (1-5 stars)" required>
+        <input type="date" name="testimonial_date[]" class="form-control" required>
+        <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeTestimonial(this)">Delete</button>
+    `;
+    container.appendChild(newEntry);
+}
+
+function removeTestimonial(button) {
+    if (confirm('Are you sure you want to delete this testimonial?')) {
+        button.closest('.testimonial-entry').remove();
+    }
+}
+
+// Image Drag and Drop
+let dragged;
+
+function drag(event) {
+    dragged = event.target;
+}
+
+function allowDrop(event) {
+    event.preventDefault();
+}
+
+function drop(event) {
+    event.preventDefault();
+    if (event.target.className.includes('col-md-4')) {
+        const parent = event.target.parentNode;
+        const from = Array.prototype.indexOf.call(parent.children, dragged);
+        const to = Array.prototype.indexOf.call(parent.children, event.target);
+        if (from < to) {
+            parent.insertBefore(dragged, event.target.nextSibling);
+        } else {
+            parent.insertBefore(dragged, event.target);
+        }
+    }
+}
+
+// Delete Image
+function deleteImage(imageUrl, imageId) {
+    if (confirm('Are you sure you want to delete this image?')) {
+        fetch("{% url 'delete_image' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ url: imageUrl })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(imageId).remove();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => alert('Error: ' + error));
+    }
+}
+
+// Lazy Loading Images
+document.addEventListener("DOMContentLoaded", function() {
+    const lazyImages = document.querySelectorAll('.lazy-load');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                observer.unobserve(img);
+            }
+        });
+    });
+    lazyImages.forEach(img => {
+        img.dataset.src = img.src;
+        img.src = '';
+        observer.observe(img);
+    });
+});
+</script>
+
+<style>
+.testimonial-entry {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: transform 0.2s;
+}
+
+.testimonial-entry:hover {
+    transform: translateY(-2px);
+}
+
+.card img {
+    transition: transform 0.3s ease;
+}
+
+.card img:hover {
+    transform: scale(1.05);
+}
+
+#image-preview img {
+    cursor: move;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
